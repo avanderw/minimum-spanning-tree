@@ -9,6 +9,7 @@
 	export let currentStep = 0;
 	export let animationSteps: AnimationStep[] = [];
 	export let animationSpeed = 1000; // ms between steps
+	export let autoStart = false; // New prop to control auto-start
 
 	const dispatch = createEventDispatcher();
 
@@ -18,6 +19,7 @@
 	let intervalId: number | null = null;
 	let svgWidth = 600;
 	let svgHeight = 400;
+	let hasAutoStarted = false; // Prevent multiple auto-starts
 	
 	const VERTEX_RADIUS = 20;
 	const ANIMATION_DURATION = 300;
@@ -121,17 +123,32 @@
 		};
 	}
 
-	// Animation control functions
+	// Animation control functions - simplified and cleaned up
+	function cleanupInterval() {
+		if (intervalId) {
+			clearInterval(intervalId);
+			intervalId = null;
+		}
+	}
+
 	function play() {
+		if (animationSteps.length === 0) return;
+		
+		// If at the end, restart from beginning
 		if (currentStep >= animationSteps.length - 1) {
 			currentStep = 0;
+			dispatch('step', currentStep);
 		}
 		
 		isPlaying = true;
+		cleanupInterval();
+		
 		intervalId = setInterval(() => {
 			if (currentStep < animationSteps.length - 1) {
-				nextStep();
+				currentStep += 1;
+				dispatch('step', currentStep);
 			} else {
+				// Animation completed
 				pause();
 			}
 		}, animationSpeed);
@@ -139,19 +156,21 @@
 
 	function pause() {
 		isPlaying = false;
-		if (intervalId) {
-			clearInterval(intervalId);
-			intervalId = null;
-		}
+		cleanupInterval();
 	}
 
 	function stop() {
 		pause();
-		currentStep = 0;
-		dispatch('step', currentStep);
+		if (animationSteps.length > 0) {
+			currentStep = 0;
+			dispatch('step', currentStep);
+		}
 	}
 
 	function nextStep() {
+		if (animationSteps.length === 0) return;
+		
+		pause(); // Stop any running animation
 		if (currentStep < animationSteps.length - 1) {
 			currentStep += 1;
 			dispatch('step', currentStep);
@@ -159,6 +178,9 @@
 	}
 
 	function prevStep() {
+		if (animationSteps.length === 0) return;
+		
+		pause(); // Stop any running animation
 		if (currentStep > 0) {
 			currentStep -= 1;
 			dispatch('step', currentStep);
@@ -166,9 +188,14 @@
 	}
 
 	function goToStep(step: number) {
-		pause();
-		currentStep = Math.max(0, Math.min(animationSteps.length - 1, step));
-		dispatch('step', currentStep);
+		if (animationSteps.length === 0) return;
+		
+		pause(); // Stop any running animation
+		const newStep = Math.max(0, Math.min(animationSteps.length - 1, step));
+		if (newStep !== currentStep) {
+			currentStep = newStep;
+			dispatch('step', currentStep);
+		}
 	}
 
 	function togglePlayPause() {
@@ -182,9 +209,7 @@
 	// Clean up interval on component destroy
 	import { onDestroy } from 'svelte';
 	onDestroy(() => {
-		if (intervalId) {
-			clearInterval(intervalId);
-		}
+		cleanupInterval();
 	});
 
 	onMount(() => {
@@ -218,6 +243,29 @@
 				generatePositions();
 			}, 10);
 		}
+	}
+
+	// Reset auto-start flag when animationSteps change
+	$: if (animationSteps) {
+		hasAutoStarted = false;
+		pause(); // Stop any running animation when steps change
+	}
+
+	// Auto-start animation when animationSteps change and autoStart is true
+	$: if (autoStart && animationSteps.length > 0 && !hasAutoStarted) {
+		hasAutoStarted = true;
+		// Small delay to ensure everything is ready
+		setTimeout(() => {
+			if (animationSteps.length > 0) {
+				currentStep = 0;
+				dispatch('step', currentStep);
+				setTimeout(() => {
+					if (!isPlaying && animationSteps.length > 0) {
+						play();
+					}
+				}, 100);
+			}
+		}, 300);
 	}
 </script>
 
@@ -339,16 +387,17 @@
 				</div>
 				<div class="control-buttons">
 					<button 
-						class="control-btn secondary"
-						on:click={prevStep} 
-						disabled={currentStep === 0}
+						class="secondary outline compact"
+						on:click|preventDefault={prevStep} 
+						disabled={currentStep === 0 || animationSteps.length === 0}
 						title="Previous Step"
 					>
 						<SkipBack size={14} />
 					</button>
 					<button 
-						class="control-btn primary"
-						on:click={togglePlayPause}
+						class="compact {isPlaying ? 'secondary' : ''}"
+						on:click|preventDefault={togglePlayPause}
+						disabled={animationSteps.length === 0}
 						title={isPlaying ? 'Pause' : 'Play'}
 					>
 						{#if isPlaying}
@@ -358,16 +407,17 @@
 						{/if}
 					</button>
 					<button 
-						class="control-btn secondary"
-						on:click={nextStep} 
-						disabled={currentStep >= animationSteps.length - 1}
+						class="secondary outline compact"
+						on:click|preventDefault={nextStep} 
+						disabled={currentStep >= animationSteps.length - 1 || animationSteps.length === 0}
 						title="Next Step"
 					>
 						<SkipForward size={14} />
 					</button>
 					<button 
-						class="control-btn secondary"
-						on:click={stop}
+						class="secondary outline compact"
+						on:click|preventDefault={stop}
+						disabled={animationSteps.length === 0}
 						title="Reset to Start"
 					>
 						<RotateCcw size={14} />
@@ -380,7 +430,10 @@
 					min="0"
 					max={Math.max(0, animationSteps.length - 1)}
 					bind:value={currentStep}
-					on:input={(e) => goToStep(Number(e.target.value))}
+					on:input={(e) => {
+						e.preventDefault();
+						goToStep(Number(e.currentTarget.value));
+					}}
 					class="progress-slider"
 				/>
 			</div>
@@ -572,42 +625,12 @@
 		align-items: center;
 	}
 
-	.control-btn {
+	.control-buttons button.compact {
 		min-width: 2rem;
 		height: 2rem;
 		padding: 0.25rem;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		border-radius: 4px;
-		border: 1px solid var(--pico-muted-border-color, #e5e7eb);
-		background: var(--pico-card-background-color, #ffffff);
-		color: var(--pico-color, #374151);
-		cursor: pointer;
-		transition: all 0.2s ease;
 		margin: 0;
 		font-size: 0;
-	}
-
-	.control-btn:hover:not(:disabled) {
-		background: var(--pico-secondary-background, #f8fafc);
-		border-color: var(--pico-secondary, #6b7280);
-	}
-
-	.control-btn.primary {
-		background: var(--pico-primary, #3b82f6);
-		color: white;
-		border-color: var(--pico-primary, #3b82f6);
-	}
-
-	.control-btn.primary:hover:not(:disabled) {
-		background: var(--pico-primary-hover, #2563eb);
-		border-color: var(--pico-primary-hover, #2563eb);
-	}
-
-	.control-btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
 	}
 
 	.progress-bar {
@@ -633,7 +656,7 @@
 		background: var(--pico-primary, #3b82f6);
 		border-radius: 50%;
 		cursor: pointer;
-		border: 2px solid white;
+		border: 2px solid var(--pico-card-background-color, white);
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 	}
 
@@ -643,12 +666,13 @@
 		background: var(--pico-primary, #3b82f6);
 		border-radius: 50%;
 		cursor: pointer;
-		border: 2px solid white;
+		border: 2px solid var(--pico-card-background-color, white);
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 	}
 
 	.current-step-info {
-		background: var(--pico-secondary-background, rgba(59, 130, 246, 0.05));
+		background: var(--pico-card-background-color, rgba(59, 130, 246, 0.05));
+		border: 1px solid var(--pico-muted-border-color, #e5e7eb);
 		border-left: 3px solid var(--pico-primary, #3b82f6);
 		border-radius: 0 4px 4px 0;
 		padding: 0.5rem;
@@ -795,7 +819,7 @@
 			justify-content: center;
 		}
 		
-		.control-btn {
+		.control-buttons button.compact {
 			min-width: 2.25rem;
 			height: 2.25rem;
 		}
@@ -825,7 +849,7 @@
 			align-items: center;
 		}
 		
-		.control-btn {
+		.control-buttons button.compact {
 			min-width: 2rem;
 			height: 2rem;
 		}

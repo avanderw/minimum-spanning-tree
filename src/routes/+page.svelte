@@ -158,14 +158,7 @@
 
 	async function runAlgorithmAndStartAnimation() {
 		await runAlgorithm();
-		// Start animation automatically after algorithm completes
-		if (result?.animationSteps && result.animationSteps.length > 0) {
-			// Small delay to ensure the visualization component is ready
-			setTimeout(() => {
-				// Trigger the first step to start the animation
-				updateVisualization(0);
-			}, 100);
-		}
+		// Animation will start automatically via the autoStart prop in GraphVisualizer
 	}
 
 	// Auto-run algorithm when selection changes
@@ -301,6 +294,7 @@
 					highlightedEdges={currentHighlightedEdges}
 					currentStep={currentAnimationStep}
 					animationSteps={result?.animationSteps || []}
+					autoStart={true}
 					on:step={handleAnimationStep}
 				/>
 			</article>
