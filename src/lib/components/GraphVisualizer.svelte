@@ -199,6 +199,18 @@
 			<span>Current Step</span>
 		</div>
 	</div>
+	
+	<footer class="graph-info">
+		<small>
+			<strong>Graph:</strong> 
+			{graph.vertices.length} vertices, 
+			{graph.edges.length} edges, 
+			{((graph.edges.length / ((graph.vertices.length * (graph.vertices.length - 1)) / 2)) * 100).toFixed(1)}% density
+			{#if graph.edges.length > 0}
+				| Weight range: {Math.min(...graph.edges.map(e => e.weight))}-{Math.max(...graph.edges.map(e => e.weight))}
+			{/if}
+		</small>
+	</footer>
 </div>
 
 <style>
@@ -259,13 +271,6 @@
 		stroke-width: 3;
 		transition: all 0.3s ease;
 		filter: drop-shadow(0 2px 4px rgba(59, 130, 246, 0.3));
-	}
-
-	.vertex:hover {
-		fill: #3b82f6;
-		cursor: pointer;
-		transform: scale(1.1);
-		filter: drop-shadow(0 4px 8px rgba(59, 130, 246, 0.5));
 	}
 
 	.vertex-label {
@@ -333,5 +338,17 @@
 
 	.edge-group {
 		transition: all 0.3s ease;
+	}
+
+	.graph-info {
+		margin-top: 1rem;
+		padding-top: 0.75rem;
+		border-top: 1px solid var(--pico-muted-border-color, #e5e7eb);
+		text-align: center;
+	}
+
+	.graph-info small {
+		color: var(--pico-muted-color, #6b7280);
+		font-size: 0.85rem;
 	}
 </style>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Play, RotateCcw, Settings, Info, GitBranch } from 'lucide-svelte';
+	import { Play, RotateCcw, Settings, Info, GitBranch, Sun, Moon } from 'lucide-svelte';
 	
 	// Import MST algorithms
 	import { prim } from '$lib/mst/prim';
@@ -23,6 +23,32 @@
 	let currentAnimationStep = 0;
 	let currentMSTEdges: any[] = [];
 	let currentHighlightedEdges: any[] = [];
+
+	// Theme management
+	let isDarkMode = false;
+
+	function toggleTheme() {
+		isDarkMode = !isDarkMode;
+		const html = document.documentElement;
+		
+		if (isDarkMode) {
+			html.setAttribute('data-theme', 'dark');
+			localStorage.setItem('theme', 'dark');
+		} else {
+			html.setAttribute('data-theme', 'light');
+			localStorage.setItem('theme', 'light');
+		}
+	}
+
+	function initializeTheme() {
+		const savedTheme = localStorage.getItem('theme');
+		const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+		
+		isDarkMode = savedTheme === 'dark' || (!savedTheme && prefersDark);
+		
+		const html = document.documentElement;
+		html.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+	}
 
 	const algorithms = [
 		{ id: 'prim', name: "Prim's Algorithm", description: 'Grows the MST one vertex at a time' },
@@ -116,44 +142,77 @@
 	function handleAnimationStep(event: CustomEvent<number>) {
 		updateVisualization(event.detail);
 	}
+
+	onMount(() => {
+		initializeTheme();
+	});
 </script>
 
 <main class="container">
 	<header>
-		<h1>
-			<GitBranch size={32} />
-			Minimum Spanning Tree Algorithms
-		</h1>
-		<p>Interactive demonstration with step-by-step visualization</p>
+		<div class="header-content">
+			<div>
+				<h1>
+					<GitBranch size={32} />
+					Minimum Spanning Tree Algorithms
+				</h1>
+				<p>Interactive demonstration with step-by-step visualization</p>
+			</div>
+			<div class="theme-toggle">
+				<button 
+					class="secondary"
+					on:click={toggleTheme}
+					title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+				>
+					{#if isDarkMode}
+						<Sun size={18} />
+						Light
+					{:else}
+						<Moon size={18} />
+						Dark
+					{/if}
+				</button>
+			</div>
+		</div>
 	</header>
 
-	<div class="main-content">
-		<div class="left-panel">
-			<section class="algorithm-selection">
-				<h2>Algorithm Selection</h2>
-				<div class="algorithm-grid">
+	<div class="grid">
+		<div>
+			<article>
+				<header>
+					<h2>Algorithm Selection</h2>
+				</header>
+				<fieldset>
 					{#each algorithms as algorithm}
-						<label class="algorithm-option">
+						<label>
 							<input 
 								type="radio" 
+								name="algorithm"
 								bind:group={selectedAlgorithm} 
 								value={algorithm.id}
 								disabled={isRunning}
 							/>
-							<div class="algorithm-card">
-								<strong>{algorithm.name}</strong>
-								<small>{algorithm.description}</small>
-							</div>
+							<strong>{algorithm.name}</strong>
+							<small>{algorithm.description}</small>
 						</label>
 					{/each}
-				</div>
-			</section>
+				</fieldset>
+			</article>
 
-			<section class="controls">
-				<h2>Controls</h2>
-				<div class="button-group">
+			<article>
+				<header>
+					<h2>Controls</h2>
+				</header>
+				{#if selectedAlgorithm}
+					<p>
+						<strong>Selected:</strong> 
+						<mark>
+							{algorithms.find(a => a.id === selectedAlgorithm)?.name || 'None'}
+						</mark>
+					</p>
+				{/if}
+				<div class="grid">
 					<button 
-						class="contrast"
 						on:click={runAlgorithm}
 						disabled={isRunning}
 						aria-busy={isRunning}
@@ -170,7 +229,7 @@
 						Reset
 					</button>
 				</div>
-			</section>
+			</article>
 
 			<GraphGenerator 
 				bind:currentGraph={graph}
@@ -178,16 +237,18 @@
 			/>
 		</div>
 
-		<div class="right-panel">
-			<section class="visualization">
-				<h2>Graph Visualization</h2>
+		<div>
+			<article>
+				<header>
+					<h2>Graph Visualization</h2>
+				</header>
 				<GraphVisualizer 
 					{graph}
 					mstEdges={currentMSTEdges}
 					highlightedEdges={currentHighlightedEdges}
 					currentStep={currentAnimationStep}
 				/>
-			</section>
+			</article>
 
 			{#if result?.animationSteps}
 				<AnimationController 
@@ -200,45 +261,40 @@
 	</div>
 
 	{#if result}
-		<section class="results">
-			<article>
-				<header>
-					<h2>Results</h2>
-					<h3>{algorithms.find(a => a.id === selectedAlgorithm)?.name}</h3>
-				</header>
-				<div class="result-content">
-					<div class="result-stats">
-						<div class="stat-card">
-							<strong>Total Weight</strong>
-							<span class="stat-value">{result.totalWeight || 'N/A'}</span>
-						</div>
-						<div class="stat-card">
-							<strong>Edges in MST</strong>
-							<span class="stat-value">{result.edges?.length || 0}</span>
-						</div>
-						<div class="stat-card">
-							<strong>Execution Time</strong>
-							<span class="stat-value">{result.executionTime?.toFixed(2) || 'N/A'} ms</span>
-						</div>
-					</div>
-					
-					{#if result.edges}
-						<details class="mst-edges">
-							<summary>MST Edges ({result.edges.length})</summary>
-							<div class="edge-list">
-								{#each result.edges as edge, index}
-									<div class="edge-item">
-										<span class="edge-number">{index + 1}.</span>
-										<span class="edge-connection">{edge.from} ↔ {edge.to}</span>
-										<span class="edge-weight">Weight: {edge.weight}</span>
-									</div>
-								{/each}
-							</div>
-						</details>
-					{/if}
+		<article>
+			<header>
+				<h2>Results - {algorithms.find(a => a.id === selectedAlgorithm)?.name}</h2>
+			</header>
+			<div class="grid">
+				<div>
+					<strong>Total Weight</strong>
+					<p>{result.totalWeight || 'N/A'}</p>
 				</div>
-			</article>
-		</section>
+				<div>
+					<strong>Edges in MST</strong>
+					<p>{result.edges?.length || 0}</p>
+				</div>
+				<div>
+					<strong>Execution Time</strong>
+					<p>{result.executionTime?.toFixed(2) || 'N/A'} ms</p>
+				</div>
+			</div>
+			
+			{#if result.edges}
+				<details>
+					<summary>MST Edges ({result.edges.length})</summary>
+					<ul>
+						{#each result.edges as edge, index}
+							<li>
+								<strong>{index + 1}.</strong>
+								{edge.from} ↔ {edge.to} 
+								<small>(Weight: {edge.weight})</small>
+							</li>
+						{/each}
+					</ul>
+				</details>
+			{/if}
+		</article>
 	{/if}
 
 	<footer>
@@ -251,223 +307,27 @@
 </main>
 
 <style>
-	.main-content {
-		display: grid;
-		grid-template-columns: 1fr 2fr;
-		gap: 2rem;
-		margin: 2rem 0;
-	}
-
-	.left-panel {
+	.header-content {
 		display: flex;
-		flex-direction: column;
-		gap: 1.5rem;
-	}
-
-	.right-panel {
-		display: flex;
-		flex-direction: column;
-		gap: 1.5rem;
-	}
-
-	.algorithm-selection {
-		background: var(--card-background-color);
-		border: 1px solid var(--muted-border-color);
-		border-radius: 8px;
-		padding: 1.5rem;
-	}
-
-	.algorithm-selection h2 {
-		margin-top: 0;
-		margin-bottom: 1rem;
-	}
-
-	.algorithm-grid {
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-	}
-
-	.algorithm-option {
-		cursor: pointer;
-		margin: 0;
-	}
-
-	.algorithm-option input[type="radio"] {
-		display: none;
-	}
-
-	.algorithm-card {
-		padding: 1rem;
-		border: 2px solid var(--muted-border-color);
-		border-radius: 6px;
-		background: var(--secondary-background);
-		transition: all 0.2s ease;
-	}
-
-	.algorithm-card:hover {
-		border-color: var(--primary);
-		background: var(--primary-background);
-	}
-
-	.algorithm-option input[type="radio"]:checked + .algorithm-card {
-		border-color: var(--primary);
-		background: var(--primary-background);
-		box-shadow: 0 0 0 1px var(--primary);
-	}
-
-	.algorithm-card strong {
-		display: block;
-		margin-bottom: 0.25rem;
-		color: var(--primary);
-	}
-
-	.algorithm-card small {
-		font-size: 0.85rem;
-		color: var(--muted-color);
-		line-height: 1.3;
-	}
-
-	.controls {
-		background: var(--card-background-color);
-		border: 1px solid var(--muted-border-color);
-		border-radius: 8px;
-		padding: 1.5rem;
-	}
-
-	.controls h2 {
-		margin-top: 0;
-		margin-bottom: 1rem;
-	}
-
-	.button-group {
-		display: flex;
-		gap: 1rem;
+		justify-content: space-between;
+		align-items: flex-start;
 		flex-wrap: wrap;
-	}
-
-	.button-group button {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		flex: 1;
-		min-width: 120px;
-	}
-
-	.visualization {
-		background: var(--card-background-color);
-		border: 1px solid var(--muted-border-color);
-		border-radius: 8px;
-		padding: 1.5rem;
-	}
-
-	.visualization h2 {
-		margin-top: 0;
-		margin-bottom: 1rem;
-	}
-
-	.results {
-		margin: 2rem 0;
-	}
-
-	.results article {
-		background: var(--card-background-color);
-		border: 1px solid var(--muted-border-color);
-		border-radius: 8px;
-		padding: 1.5rem;
-	}
-
-	.results header h2 {
-		margin: 0 0 0.5rem 0;
-	}
-
-	.results header h3 {
-		margin: 0 0 1.5rem 0;
-		color: var(--primary);
-		font-size: 1.1rem;
-	}
-
-	.result-stats {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 		gap: 1rem;
-		margin-bottom: 1.5rem;
 	}
 
-	.stat-card {
-		background: var(--secondary-background);
-		border: 1px solid var(--muted-border-color);
-		border-radius: 6px;
-		padding: 1rem;
-		text-align: center;
-	}
-
-	.stat-card strong {
-		display: block;
-		font-size: 0.85rem;
-		color: var(--muted-color);
-		margin-bottom: 0.5rem;
-		text-transform: uppercase;
-		letter-spacing: 0.5px;
-	}
-
-	.stat-value {
-		font-size: 1.5rem;
-		font-weight: bold;
-		color: var(--primary);
-	}
-
-	.mst-edges summary {
-		cursor: pointer;
-		font-weight: 500;
-		padding: 0.75rem;
-		background: var(--secondary-background);
-		border-radius: 4px;
-		margin-bottom: 0.75rem;
-	}
-
-	.edge-list {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.edge-item {
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-		padding: 0.75rem;
-		background: var(--secondary-background);
-		border-radius: 4px;
-		font-family: monospace;
-	}
-
-	.edge-number {
-		color: var(--muted-color);
-		font-weight: bold;
-		min-width: 2rem;
-	}
-
-	.edge-connection {
-		font-weight: 500;
-		flex: 1;
-	}
-
-	.edge-weight {
-		color: var(--primary);
-		font-weight: bold;
-	}
-
-	header h1 {
+	.header-content h1 {
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
+		margin-bottom: 0.5rem;
 	}
 
-	footer {
-		margin-top: 3rem;
-		padding: 2rem 0;
-		border-top: 1px solid var(--muted-border-color);
+	.theme-toggle {
+		flex-shrink: 0;
+	}
+
+	.theme-toggle button {
+		margin: 0;
 	}
 
 	footer small {
@@ -478,23 +338,20 @@
 		line-height: 1.5;
 	}
 
-	@media (max-width: 1200px) {
-		.main-content {
-			grid-template-columns: 1fr;
-		}
-		
-		.result-stats {
-			grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-		}
+	button {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	@media (max-width: 768px) {
-		.button-group {
+		.header-content {
 			flex-direction: column;
+			align-items: stretch;
 		}
 		
-		.button-group button {
-			flex: none;
+		.theme-toggle {
+			align-self: flex-end;
 		}
 	}
 </style>

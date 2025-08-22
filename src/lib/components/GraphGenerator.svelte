@@ -2,7 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import { generateRandomGraph, PRESET_GRAPHS, type GraphGeneratorOptions } from '$lib/mst/graphGenerator';
 	import type { Graph } from '$lib/mst/types';
-	import { Settings, Shuffle, Download, Upload } from 'lucide-svelte';
+	import { Settings, Shuffle } from 'lucide-svelte';
 
 	export let currentGraph: Graph;
 	
@@ -39,46 +39,6 @@
 	function randomizeSeed() {
 		generatorOptions.seed = Math.floor(Math.random() * 1000);
 		generateNewGraph();
-	}
-
-	function exportGraph() {
-		const dataStr = JSON.stringify(currentGraph, null, 2);
-		const dataBlob = new Blob([dataStr], { type: 'application/json' });
-		const url = URL.createObjectURL(dataBlob);
-		const link = document.createElement('a');
-		link.href = url;
-		link.download = 'graph.json';
-		document.body.appendChild(link);
-		link.click();
-		document.body.removeChild(link);
-		URL.revokeObjectURL(url);
-	}
-
-	function importGraph() {
-		const input = document.createElement('input');
-		input.type = 'file';
-		input.accept = '.json';
-		input.onchange = (event) => {
-			const file = (event.target as HTMLInputElement).files?.[0];
-			if (file) {
-				const reader = new FileReader();
-				reader.onload = (e) => {
-					try {
-						const importedGraph = JSON.parse(e.target?.result as string);
-						if (importedGraph.vertices && importedGraph.edges) {
-							currentGraph = importedGraph;
-							dispatch('graphChanged', currentGraph);
-						} else {
-							alert('Invalid graph format');
-						}
-					} catch (error) {
-						alert('Error parsing graph file');
-					}
-				};
-				reader.readAsText(file);
-			}
-		};
-		input.click();
 	}
 </script>
 
@@ -187,28 +147,6 @@
 			</div>
 		</div>
 	{/if}
-
-	<div class="graph-actions">
-		<h4>Graph Actions</h4>
-		<div class="action-buttons">
-			<button 
-				class="secondary outline"
-				on:click={exportGraph}
-				title="Export current graph"
-			>
-				<Download size={16} />
-				Export
-			</button>
-			<button 
-				class="secondary outline"
-				on:click={importGraph}
-				title="Import graph from file"
-			>
-				<Upload size={16} />
-				Import
-			</button>
-		</div>
-	</div>
 
 	<div class="current-graph-info">
 		<h4>Current Graph</h4>
@@ -323,26 +261,6 @@
 		width: 100%;
 	}
 
-	.graph-actions {
-		margin-bottom: 1.5rem;
-	}
-
-	.graph-actions h4 {
-		margin-bottom: 0.75rem;
-	}
-
-	.action-buttons {
-		display: flex;
-		gap: 0.5rem;
-		flex-wrap: wrap;
-	}
-
-	.action-buttons button {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
-
 	.current-graph-info {
 		padding-top: 1rem;
 		border-top: 1px solid var(--muted-border-color);
@@ -372,10 +290,6 @@
 		}
 		
 		.preset-buttons {
-			flex-direction: column;
-		}
-		
-		.action-buttons {
 			flex-direction: column;
 		}
 	}
