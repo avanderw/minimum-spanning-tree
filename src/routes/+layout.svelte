@@ -1,6 +1,5 @@
 <script lang="ts">
 	import '@picocss/pico';
-	import favicon from '$lib/assets/favicon.svg';
 	import { HomeIcon, Github, ChartNoAxesCombinedIcon, Sun, Moon } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 
@@ -54,7 +53,7 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<link rel="icon" href="https://avanderw.co.za/favicon.ico" />
 	<title>Minimum Spanning Tree Algorithms</title>
 	<meta name="description" content="Interactive demonstration of MST algorithms including Prim's, Kruskal's, Borůvka's, and Reverse-Delete" />
 </svelte:head>
