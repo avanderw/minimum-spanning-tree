@@ -1,28 +1,38 @@
 <script lang="ts">
 	import { onMount, createEventDispatcher } from 'svelte';
-	import type { Graph, Edge } from '$lib/mst/types';
+	import { Play, Pause, SkipForward, SkipBack, RotateCcw } from 'lucide-svelte';
+	import type { Graph, Edge, AnimationStep } from '$lib/mst/types';
 
 	export let graph: Graph;
 	export let mstEdges: Edge[] = [];
 	export let highlightedEdges: Edge[] = [];
 	export let currentStep = 0;
+	export let animationSteps: AnimationStep[] = [];
 	export let animationSpeed = 1000; // ms between steps
 
 	const dispatch = createEventDispatcher();
 
 	let svgElement: SVGElement;
 	let positions: Record<string, { x: number; y: number }> = {};
+	let isPlaying = false;
+	let intervalId: number | null = null;
+	let svgWidth = 600;
+	let svgHeight = 400;
 	
-	const SVG_WIDTH = 600;
-	const SVG_HEIGHT = 400;
 	const VERTEX_RADIUS = 20;
 	const ANIMATION_DURATION = 300;
 
 	// Generate positions for vertices in a circle
 	function generatePositions() {
-		const centerX = SVG_WIDTH / 2;
-		const centerY = SVG_HEIGHT / 2;
-		const radius = Math.min(SVG_WIDTH, SVG_HEIGHT) * 0.35;
+		if (!svgElement) return;
+		
+		const rect = svgElement.getBoundingClientRect();
+		svgWidth = rect.width || 600;
+		svgHeight = rect.height || 400;
+		
+		const centerX = svgWidth / 2;
+		const centerY = svgHeight / 2;
+		const radius = Math.min(svgWidth, svgHeight) * 0.35;
 		
 		positions = {};
 		const angleStep = (2 * Math.PI) / graph.vertices.length;
@@ -106,125 +116,459 @@
 		};
 	}
 
+	// Animation control functions
+	function play() {
+		if (currentStep >= animationSteps.length - 1) {
+			currentStep = 0;
+		}
+		
+		isPlaying = true;
+		intervalId = setInterval(() => {
+			if (currentStep < animationSteps.length - 1) {
+				nextStep();
+			} else {
+				pause();
+			}
+		}, animationSpeed);
+	}
+
+	function pause() {
+		isPlaying = false;
+		if (intervalId) {
+			clearInterval(intervalId);
+			intervalId = null;
+		}
+	}
+
+	function stop() {
+		pause();
+		currentStep = 0;
+		dispatch('step', currentStep);
+	}
+
+	function nextStep() {
+		if (currentStep < animationSteps.length - 1) {
+			currentStep += 1;
+			dispatch('step', currentStep);
+		}
+	}
+
+	function prevStep() {
+		if (currentStep > 0) {
+			currentStep -= 1;
+			dispatch('step', currentStep);
+		}
+	}
+
+	function goToStep(step: number) {
+		pause();
+		currentStep = Math.max(0, Math.min(animationSteps.length - 1, step));
+		dispatch('step', currentStep);
+	}
+
+	function togglePlayPause() {
+		if (isPlaying) {
+			pause();
+		} else {
+			play();
+		}
+	}
+
+	// Clean up interval on component destroy
+	import { onDestroy } from 'svelte';
+	onDestroy(() => {
+		if (intervalId) {
+			clearInterval(intervalId);
+		}
+	});
+
 	onMount(() => {
-		generatePositions();
+		// Initial positioning
+		setTimeout(() => {
+			generatePositions();
+		}, 100);
+		
+		// Handle window resize
+		const handleResize = () => {
+			setTimeout(() => {
+				generatePositions();
+			}, 100);
+		};
+		
+		window.addEventListener('resize', handleResize);
+		
+		return () => {
+			window.removeEventListener('resize', handleResize);
+		};
 	});
 
 	// Regenerate positions when graph changes
-	$: if (graph) {
-		generatePositions();
+	$: if (graph && svgElement) {
+		setTimeout(() => {
+			generatePositions();
+		}, 50);
 	}
 </script>
 
 <div class="graph-visualizer">
-	<svg bind:this={svgElement} width={SVG_WIDTH} height={SVG_HEIGHT}>
-		<!-- Grid background -->
-		<defs>
-			<pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-				<path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e5e7eb" stroke-width="0.5" opacity="0.3"/>
-			</pattern>
-		</defs>
-		<rect width="100%" height="100%" fill="url(#grid)" />
-		
-		<!-- Edges -->
-		<g class="edges">
-			{#each graph.edges as edge, i (edge.from + edge.to + edge.weight + mstEdges.length + highlightedEdges.length)}
-				<g class="edge-group">
-					<!-- Edge line -->
-					<path
-						d={getEdgePath(edge)}
-						class={getEdgeClass(edge)}
-					/>
-					
-					<!-- Edge weight label -->
-					{#if positions[edge.from] && positions[edge.to]}
-						{@const labelPos = getLabelPosition(edge)}
-						<circle 
-							cx={labelPos.x} 
-							cy={labelPos.y} 
-							r="12" 
-							class="weight-bg"
-						/>
-						<text 
-							x={labelPos.x} 
-							y={labelPos.y} 
-							class="weight-label"
-							text-anchor="middle" 
-							dominant-baseline="central"
-						>
-							{edge.weight}
-						</text>
-					{/if}
-				</g>
-			{/each}
-		</g>
-		
-		<!-- Vertices -->
-		<g class="vertices">
-			{#each graph.vertices as vertex}
-				{#if positions[vertex]}
-					<g class="vertex-group">
-						<circle 
-							cx={positions[vertex].x} 
-							cy={positions[vertex].y} 
-							r={VERTEX_RADIUS}
-							class="vertex"
-						/>
-						<text 
-							x={positions[vertex].x} 
-							y={positions[vertex].y}
-							class="vertex-label"
-							text-anchor="middle" 
-							dominant-baseline="central"
-						>
-							{vertex}
-						</text>
-					</g>
-				{/if}
-			{/each}
-		</g>
-	</svg>
-	
-	<div class="legend">
-		<div class="legend-item">
-			<div class="legend-line edge"></div>
-			<span>Original Edge</span>
-		</div>
-		<div class="legend-item">
-			<div class="legend-line mst"></div>
-			<span>MST Edge</span>
-		</div>
-		<div class="legend-item">
-			<div class="legend-line highlighted"></div>
-			<span>Current Step</span>
+	<div class="graph-stats">
+		<h4>Graph Statistics</h4>
+		<div class="stats-grid">
+			<div class="stat">
+				<span class="stat-value">{graph.vertices.length}</span>
+				<span class="stat-label">vertices</span>
+			</div>
+			<div class="stat">
+				<span class="stat-value">{graph.edges.length}</span>
+				<span class="stat-label">edges</span>
+			</div>
+			<div class="stat">
+				<span class="stat-value">{((graph.edges.length / ((graph.vertices.length * (graph.vertices.length - 1)) / 2)) * 100).toFixed(0)}%</span>
+				<span class="stat-label">density</span>
+			</div>
 		</div>
 	</div>
+
+	<div class="svg-container">
+		<svg bind:this={svgElement} viewBox="0 0 600 400" preserveAspectRatio="xMidYMid meet">
+			<!-- Grid background -->
+			<defs>
+				<pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+					<path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e5e7eb" stroke-width="0.5" opacity="0.3"/>
+				</pattern>
+			</defs>
+			<rect width="100%" height="100%" fill="url(#grid)" />
+			
+			<!-- Edges -->
+			<g class="edges">
+				{#each graph.edges as edge, i (edge.from + edge.to + edge.weight + mstEdges.length + highlightedEdges.length)}
+					<g class="edge-group">
+						<!-- Edge line -->
+						<path
+							d={getEdgePath(edge)}
+							class={getEdgeClass(edge)}
+						/>
+						
+						<!-- Edge weight label -->
+						{#if positions[edge.from] && positions[edge.to]}
+							{@const labelPos = getLabelPosition(edge)}
+							<circle 
+								cx={labelPos.x} 
+								cy={labelPos.y} 
+								r="12" 
+								class="weight-bg"
+							/>
+							<text 
+								x={labelPos.x} 
+								y={labelPos.y} 
+								class="weight-label"
+								text-anchor="middle" 
+								dominant-baseline="central"
+							>
+								{edge.weight}
+							</text>
+						{/if}
+					</g>
+				{/each}
+			</g>
+			
+			<!-- Vertices -->
+			<g class="vertices">
+				{#each graph.vertices as vertex}
+					{#if positions[vertex]}
+						<g class="vertex-group">
+							<circle 
+								cx={positions[vertex].x} 
+								cy={positions[vertex].y} 
+								r={VERTEX_RADIUS}
+								class="vertex"
+							/>
+							<text 
+								x={positions[vertex].x} 
+								y={positions[vertex].y}
+								class="vertex-label"
+								text-anchor="middle" 
+								dominant-baseline="central"
+							>
+								{vertex}
+							</text>
+						</g>
+					{/if}
+				{/each}
+			</g>
+		</svg>
+	</div>
 	
-	<footer class="graph-info">
-		<small>
-			<strong>Graph:</strong> 
-			{graph.vertices.length} vertices, 
-			{graph.edges.length} edges, 
-			{((graph.edges.length / ((graph.vertices.length * (graph.vertices.length - 1)) / 2)) * 100).toFixed(1)}% density
-			{#if graph.edges.length > 0}
-				| Weight range: {Math.min(...graph.edges.map(e => e.weight))}-{Math.max(...graph.edges.map(e => e.weight))}
-			{/if}
-		</small>
-	</footer>
+	<div class="legend">
+		<h4>Legend</h4>
+		<div class="legend-items">
+			<div class="legend-item">
+				<div class="legend-line edge"></div>
+				<span>Original Edge</span>
+			</div>
+			<div class="legend-item">
+				<div class="legend-line mst"></div>
+				<span>MST Edge</span>
+			</div>
+			<div class="legend-item">
+				<div class="legend-line highlighted"></div>
+				<span>Current Step</span>
+			</div>
+		</div>
+	</div>
+
+	{#if animationSteps.length > 0}
+		<div class="animation-controls">
+			<div class="controls-header">
+				<h4>Animation Controls</h4>
+				<div class="step-counter">
+					Step {currentStep + 1} of {animationSteps.length}
+				</div>
+			</div>
+			<div class="progress-bar">
+				<input
+					type="range"
+					min="0"
+					max={Math.max(0, animationSteps.length - 1)}
+					bind:value={currentStep}
+					on:input={(e) => goToStep(Number(e.target.value))}
+				/>
+			</div>
+			<div class="control-buttons">
+				<button 
+					class="secondary compact"
+					on:click={prevStep} 
+					disabled={currentStep === 0}
+					title="Previous Step"
+				>
+					<SkipBack size={16} />
+				</button>
+				<button 
+					class="primary compact"
+					on:click={togglePlayPause}
+					title={isPlaying ? 'Pause' : 'Play'}
+				>
+					{#if isPlaying}
+						<Pause size={16} />
+					{:else}
+						<Play size={16} />
+					{/if}
+				</button>
+				<button 
+					class="secondary compact"
+					on:click={nextStep} 
+					disabled={currentStep >= animationSteps.length - 1}
+					title="Next Step"
+				>
+					<SkipForward size={16} />
+				</button>
+				<button 
+					class="secondary compact"
+					on:click={stop}
+					title="Reset to Start"
+				>
+					<RotateCcw size={16} />
+				</button>
+			</div>
+			<div class="current-step-info">
+				<small><strong>Current Step:</strong> {animationSteps[currentStep]?.description || 'No description'}</small>
+			</div>
+		</div>
+	{/if}
 </div>
 
 <style>
 	.graph-visualizer {
+		width: 100%;
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+		max-width: 800px;
+		margin: 0 auto;
+	}
+
+	.graph-stats {
+		background: var(--pico-card-background-color, #f8fafc);
+		border: 1px solid var(--pico-muted-border-color, #e5e7eb);
+		border-radius: 6px;
+		padding: 0.75rem;
+	}
+
+	.graph-stats h4 {
+		margin: 0 0 0.5rem 0;
+		font-size: 0.8rem;
+		font-weight: 600;
+		color: var(--pico-color, #374151);
+		text-align: center;
+	}
+
+	.stats-grid {
+		display: flex;
+		justify-content: center;
+		gap: 1.5rem;
+		flex-wrap: wrap;
+	}
+
+	.stat {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 1rem;
+		text-align: center;
+		min-width: 60px;
+	}
+
+	.stat-value {
+		font-size: 1rem;
+		font-weight: 700;
+		color: var(--pico-primary, #3b82f6);
+		line-height: 1.1;
+	}
+
+	.stat-label {
+		font-size: 0.65rem;
+		color: var(--pico-muted-color, #6b7280);
+		text-transform: uppercase;
+		letter-spacing: 0.025em;
+		margin-top: 0.15rem;
+	}
+
+	.svg-container {
+		display: flex;
+		justify-content: center;
+		background: var(--pico-card-background-color, #ffffff);
+		border: 1px solid var(--pico-muted-border-color, #e5e7eb);
+		border-radius: 8px;
+		padding: 1rem;
 	}
 
 	svg {
-		border: 1px solid #e5e7eb;
-		border-radius: 8px;
-		background: #ffffff;
+		width: 100%;
+		height: auto;
+		min-height: 250px;
+		max-height: 500px;
+		aspect-ratio: 3/2;
+		border: 1px solid var(--pico-muted-border-color, #e5e7eb);
+		border-radius: 6px;
+		background: var(--pico-card-background-color, #ffffff);
+	}
+
+	.legend {
+		background: var(--pico-card-background-color, #f8fafc);
+		border: 1px solid var(--pico-muted-border-color, #e5e7eb);
+		border-radius: 6px;
+		padding: 1rem;
+	}
+
+	.legend h4 {
+		margin: 0 0 0.75rem 0;
+		font-size: 0.875rem;
+		font-weight: 600;
+		color: var(--pico-color, #374151);
+		text-align: center;
+	}
+
+	.legend-items {
+		display: flex;
+		justify-content: center;
+		gap: 2rem;
+		flex-wrap: wrap;
+	}
+
+	.legend-item {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.85rem;
+	}
+
+	.legend-line {
+		width: 24px;
+		height: 3px;
+		border-radius: 2px;
+		flex-shrink: 0;
+	}
+
+	.legend-line.edge {
+		background: #6b7280;
+	}
+
+	.legend-line.mst {
+		background: #22c55e;
+	}
+
+	.legend-line.highlighted {
+		background: #f59e0b;
+		animation: pulse 2s ease-in-out infinite alternate;
+		box-shadow: 0 0 4px rgba(245, 158, 11, 0.6);
+	}
+
+	.animation-controls {
+		background: var(--pico-primary-background, #eff6ff);
+		border: 1px solid var(--pico-primary, #3b82f6);
+		border-radius: 6px;
+		padding: 1rem;
+	}
+
+	.controls-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 0.75rem;
+	}
+
+	.controls-header h4 {
+		margin: 0;
+		font-size: 0.875rem;
+		font-weight: 600;
+		color: var(--pico-color, #374151);
+	}
+
+	.step-counter {
+		font-size: 0.75rem;
+		color: var(--pico-muted-color, #6b7280);
+		font-weight: 500;
+	}
+
+	.progress-bar {
+		margin-bottom: 1rem;
+	}
+
+	.progress-bar input[type="range"] {
+		width: 100%;
+		height: 6px;
+		margin: 0;
+	}
+
+	.control-buttons {
+		display: flex;
+		gap: 0.5rem;
+		justify-content: center;
+		margin-bottom: 1rem;
+		flex-wrap: wrap;
+	}
+
+	.control-buttons button.compact {
+		min-width: 2.5rem;
+		height: 2.5rem;
+		padding: 0.5rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 6px;
+	}
+
+	.current-step-info {
+		background: var(--pico-card-background-color, #ffffff);
+		border: 1px solid var(--pico-muted-border-color, #e5e7eb);
+		border-radius: 4px;
+		padding: 0.75rem;
+		text-align: center;
+	}
+
+	.current-step-info small {
+		font-size: 0.8rem;
+		line-height: 1.4;
+		color: var(--pico-color, #374151);
 	}
 
 	svg .edge {
@@ -265,8 +609,13 @@
 		}
 	}
 
+	@keyframes pulse {
+		0% { opacity: 0.8; }
+		100% { opacity: 1; }
+	}
+
 	.vertex {
-		fill: #ffffff;
+		fill: var(--pico-card-background-color, #ffffff);
 		stroke: #3b82f6;
 		stroke-width: 3;
 		transition: all 0.3s ease;
@@ -281,74 +630,100 @@
 	}
 
 	.weight-bg {
-		fill: #ffffff;
-		stroke: #e5e7eb;
+		fill: var(--pico-card-background-color, #ffffff);
+		stroke: var(--pico-muted-border-color, #e5e7eb);
 		stroke-width: 1;
 	}
 
 	.weight-label {
-		fill: #374151;
+		fill: var(--pico-color, #374151);
 		font-size: 11px;
 		font-weight: bold;
 		pointer-events: none;
-	}
-
-	.legend {
-		display: flex;
-		gap: 2rem;
-		flex-wrap: wrap;
-		justify-content: center;
-		padding: 1rem;
-		background: #ffffff;
-		border: 1px solid #e5e7eb;
-		border-radius: 8px;
-	}
-
-	.legend-item {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		font-size: 0.9rem;
-	}
-
-	.legend-line {
-		width: 30px;
-		height: 3px;
-		border-radius: 2px;
-	}
-
-	.legend-line.edge {
-		background: #6b7280;
-	}
-
-	.legend-line.mst {
-		background: #22c55e;
-	}
-
-	.legend-line.highlighted {
-		background: #f59e0b;
-		animation: dash 1.5s linear infinite, pulse 2s ease-in-out infinite alternate;
-		box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
-	}
-
-	@keyframes pulse {
-		0% { opacity: 0.8; }
-		100% { opacity: 1; }
 	}
 
 	.edge-group {
 		transition: all 0.3s ease;
 	}
 
-	.graph-info {
-		margin-top: 1rem;
-		padding-top: 0.75rem;
-		border-top: 1px solid var(--pico-muted-border-color, #e5e7eb);
-		text-align: center;
+	/* Responsive design */
+	@media (max-width: 768px) {
+		.graph-visualizer {
+			gap: 0.75rem;
+		}
+		
+		.graph-stats {
+			padding: 0.5rem;
+		}
+		
+		.graph-stats h4 {
+			font-size: 0.75rem;
+			margin-bottom: 0.4rem;
+		}
+		
+		.stats-grid {
+			gap: 1rem;
+		}
+		
+		.stat-value {
+			font-size: 0.9rem;
+		}
+		
+		.stat-label {
+			font-size: 0.6rem;
+		}
+		
+		.legend-items {
+			gap: 1rem;
+		}
+		
+		.legend-item {
+			font-size: 0.8rem;
+		}
+		
+		.controls-header {
+			flex-direction: column;
+			gap: 0.5rem;
+			text-align: center;
+		}
+		
+		.control-buttons {
+			gap: 0.25rem;
+		}
+		
+		.control-buttons button.compact {
+			min-width: 2.25rem;
+			height: 2.25rem;
+		}
+		
+		svg {
+			min-height: 200px;
+			max-height: 350px;
+		}
 	}
 
-	.graph-info small {
-		color: var(--pico-muted-color, #6b7280);
-		font-size: 0.85rem;
+	@media (max-width: 480px) {
+		.stats-grid {
+			gap: 1rem;
+		}
+		
+		.stat-value {
+			font-size: 0.85rem;
+		}
+		
+		.stat-label {
+			font-size: 0.55rem;
+		}
+		
+		.legend-items {
+			flex-direction: column;
+			gap: 0.5rem;
+			align-items: center;
+		}
+		
+		svg {
+			min-height: 180px;
+			max-height: 280px;
+		}
 	}
 </style>

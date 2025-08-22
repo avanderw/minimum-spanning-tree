@@ -10,7 +10,6 @@
 	
 	// Import components
 	import GraphVisualizer from '$lib/components/GraphVisualizer.svelte';
-	import AnimationController from '$lib/components/AnimationController.svelte';
 	import GraphGenerator from '$lib/components/GraphGenerator.svelte';
 	
 	// Import types
@@ -148,33 +147,33 @@
 	});
 </script>
 
-<main class="container">
-	<header>
-		<div class="header-content">
-			<div>
-				<h1>
-					<GitBranch size={32} />
-					Minimum Spanning Tree Algorithms
-				</h1>
-				<p>Interactive demonstration with step-by-step visualization</p>
-			</div>
-			<div class="theme-toggle">
-				<button 
-					class="secondary"
-					on:click={toggleTheme}
-					title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-				>
-					{#if isDarkMode}
-						<Sun size={18} />
-						Light
-					{:else}
-						<Moon size={18} />
-						Dark
-					{/if}
-				</button>
-			</div>
+<header class="container">
+	<div class="header-content">
+		<div>
+			<h1>
+				<GitBranch size={32} />
+				Minimum Spanning Tree Algorithms
+			</h1>
 		</div>
-	</header>
+		<div class="theme-toggle">
+			<button 
+				class="secondary"
+				on:click={toggleTheme}
+				title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+			>
+				{#if isDarkMode}
+					<Sun size={18} />
+					Light
+				{:else}
+					<Moon size={18} />
+					Dark
+				{/if}
+			</button>
+		</div>
+	</div>
+</header>
+
+<main class="container">
 
 	<div class="grid">
 		<div>
@@ -240,23 +239,17 @@
 		<div>
 			<article>
 				<header>
-					<h2>Graph Visualization</h2>
+					<h2>Graph Visualization & Animation</h2>
 				</header>
 				<GraphVisualizer 
 					{graph}
 					mstEdges={currentMSTEdges}
 					highlightedEdges={currentHighlightedEdges}
 					currentStep={currentAnimationStep}
-				/>
-			</article>
-
-			{#if result?.animationSteps}
-				<AnimationController 
-					steps={result.animationSteps.map(step => step.description)}
-					bind:currentStep={currentAnimationStep}
+					animationSteps={result?.animationSteps || []}
 					on:step={handleAnimationStep}
 				/>
-			{/if}
+			</article>
 		</div>
 	</div>
 
@@ -296,15 +289,15 @@
 			{/if}
 		</article>
 	{/if}
-
-	<footer>
-		<small>
-			<Info size={16} />
-			This interactive demo showcases three different approaches to finding the Minimum Spanning Tree. 
-			Use the animation controls to step through each algorithm's execution.
-		</small>
-	</footer>
 </main>
+
+<footer class="container">
+	<small>
+		<Info size={16} />
+		This interactive demo showcases three different approaches to finding the Minimum Spanning Tree. 
+		Use the animation controls to step through each algorithm's execution.
+	</small>
+</footer>
 
 <style>
 	.header-content {
