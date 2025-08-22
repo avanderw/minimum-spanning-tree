@@ -293,10 +293,10 @@
 			<!-- Grid background with theme-responsive colors -->
 			<defs>
 				<pattern id="grid-light" width="20" height="20" patternUnits="userSpaceOnUse">
-					<path d="M 20 0 L 0 0 0 20" fill="none" stroke="#d1d5db" stroke-width="0.5" opacity="0.4"/>
+					<path d="M 20 0 L 0 0 0 20" fill="none" stroke="#d1d5db" stroke-width="0.8" opacity="0.6"/>
 				</pattern>
 				<pattern id="grid-dark" width="20" height="20" patternUnits="userSpaceOnUse">
-					<path d="M 20 0 L 0 0 0 20" fill="none" stroke="#374151" stroke-width="0.5" opacity="0.2"/>
+					<path d="M 20 0 L 0 0 0 20" fill="none" stroke="#6b7280" stroke-width="0.8" opacity="0.4"/>
 				</pattern>
 			</defs>
 			<rect width="100%" height="100%" fill="url(#grid-light)" class="grid-bg" />
@@ -360,24 +360,6 @@
 			</g>
 		</svg>
 	</div>
-	
-	<div class="legend">
-		<h4>Legend</h4>
-		<div class="legend-items">
-			<div class="legend-item">
-				<div class="legend-line edge"></div>
-				<span>Original Edge</span>
-			</div>
-			<div class="legend-item">
-				<div class="legend-line mst"></div>
-				<span>MST Edge</span>
-			</div>
-			<div class="legend-item">
-				<div class="legend-line highlighted"></div>
-				<span>Current Step</span>
-			</div>
-		</div>
-	</div>
 
 	{#if animationSteps.length > 0}
 		<div class="animation-controls">
@@ -423,19 +405,6 @@
 						<RotateCcw size={14} />
 					</button>
 				</div>
-			</div>
-			<div class="progress-bar">
-				<input
-					type="range"
-					min="0"
-					max={Math.max(0, animationSteps.length - 1)}
-					bind:value={currentStep}
-					on:input={(e) => {
-						e.preventDefault();
-						goToStep(Number(e.currentTarget.value));
-					}}
-					class="progress-slider"
-				/>
 			</div>
 			<div class="current-step-info">
 				<small>{animationSteps[currentStep]?.description || 'No description'}</small>
@@ -511,8 +480,6 @@
 	svg {
 		width: 100%;
 		height: auto;
-		min-height: 250px;
-		max-height: 500px;
 		aspect-ratio: 3/2;
 		border: 1px solid var(--pico-muted-border-color, #e5e7eb);
 		border-radius: 6px;
@@ -531,61 +498,6 @@
 	/* Default to light theme if no data-theme attribute */
 	svg .grid-bg {
 		fill: url(#grid-light);
-	}
-
-	.legend {
-		background: var(--pico-card-background-color, #f8fafc);
-		border: 1px solid var(--pico-muted-border-color, #e5e7eb);
-		border-radius: 6px;
-		padding: 1rem;
-	}
-
-	.legend h4 {
-		margin: 0 0 0.75rem 0;
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: var(--pico-color, #374151);
-		text-align: center;
-	}
-
-	.legend-items {
-		display: flex;
-		justify-content: center;
-		gap: 2rem;
-		flex-wrap: wrap;
-	}
-
-	.legend-item {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		font-size: 0.85rem;
-	}
-
-	.legend-line {
-		width: 24px;
-		height: 3px;
-		border-radius: 2px;
-		flex-shrink: 0;
-	}
-
-	.legend-line.edge {
-		background: var(--pico-muted-color, #6b7280);
-	}
-
-	.legend-line.mst {
-		background: #22c55e;
-	}
-
-	.legend-line.highlighted {
-		background: #f59e0b;
-		animation: pulse 2s ease-in-out infinite alternate;
-		box-shadow: 0 0 4px rgba(245, 158, 11, 0.6);
-	}
-
-	/* Dark theme legend adjustments */
-	:global([data-theme="dark"]) .legend-line.edge {
-		background: #9ca3af;
 	}
 
 	.animation-controls {
@@ -631,43 +543,6 @@
 		padding: 0.25rem;
 		margin: 0;
 		font-size: 0;
-	}
-
-	.progress-bar {
-		width: 100%;
-	}
-
-	.progress-slider {
-		width: 100%;
-		height: 4px;
-		margin: 0;
-		-webkit-appearance: none;
-		appearance: none;
-		background: var(--pico-muted-border-color, #e5e7eb);
-		border-radius: 2px;
-		outline: none;
-	}
-
-	.progress-slider::-webkit-slider-thumb {
-		-webkit-appearance: none;
-		appearance: none;
-		width: 16px;
-		height: 16px;
-		background: var(--pico-primary, #3b82f6);
-		border-radius: 50%;
-		cursor: pointer;
-		border: 2px solid var(--pico-card-background-color, white);
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-	}
-
-	.progress-slider::-moz-range-thumb {
-		width: 16px;
-		height: 16px;
-		background: var(--pico-primary, #3b82f6);
-		border-radius: 50%;
-		cursor: pointer;
-		border: 2px solid var(--pico-card-background-color, white);
-		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 	}
 
 	.current-step-info {
@@ -801,14 +676,6 @@
 			font-size: 0.6rem;
 		}
 		
-		.legend-items {
-			gap: 1rem;
-		}
-		
-		.legend-item {
-			font-size: 0.8rem;
-		}
-		
 		.controls-row {
 			flex-direction: column;
 			gap: 0.5rem;
@@ -824,10 +691,6 @@
 			height: 2.25rem;
 		}
 		
-		svg {
-			min-height: 200px;
-			max-height: 350px;
-		}
 	}
 
 	@media (max-width: 480px) {
@@ -843,20 +706,10 @@
 			font-size: 0.55rem;
 		}
 		
-		.legend-items {
-			flex-direction: column;
-			gap: 0.5rem;
-			align-items: center;
-		}
-		
 		.control-buttons button.compact {
 			min-width: 2rem;
 			height: 2rem;
 		}
 		
-		svg {
-			min-height: 180px;
-			max-height: 280px;
-		}
 	}
 </style>
