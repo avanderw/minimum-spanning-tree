@@ -10,7 +10,6 @@
 	
 	// Import components
 	import GraphVisualizer from '$lib/components/GraphVisualizer.svelte';
-	import GraphGenerator from '$lib/components/GraphGenerator.svelte';
 	
 	// Import types
 	import type { Graph, MSTResult, AnimationStep } from '$lib/mst/types';
@@ -50,8 +49,8 @@
 	}
 
 	const algorithms = [
-		{ id: 'prim', name: "Prim's Algorithm", description: 'Grows the MST one vertex at a time' },
 		{ id: 'kruskal', name: "Kruskal's Algorithm", description: 'Sorts edges and adds them if they don\'t create cycles' },
+		{ id: 'prim', name: "Prim's Algorithm", description: 'Grows the MST one vertex at a time' },
 		{ id: 'boruvka', name: "Borůvka's Algorithm", description: 'Finds minimum edge for each component simultaneously' },
 		{ id: 'reverse-delete', name: "Reverse Delete Algorithm", description: 'Removes heaviest edges while keeping graph connected' }
 	];
@@ -133,11 +132,6 @@
 		}
 	}
 
-	function handleGraphChanged(event: CustomEvent<Graph>) {
-		graph = event.detail;
-		resetDemo();
-	}
-
 	function handleAnimationStep(event: CustomEvent<number>) {
 		updateVisualization(event.detail);
 	}
@@ -157,16 +151,14 @@
 		</div>
 		<div class="theme-toggle">
 			<button 
-				class="secondary"
+				class="secondary compact-theme-btn"
 				on:click={toggleTheme}
 				title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
 			>
 				{#if isDarkMode}
-					<Sun size={18} />
-					Light
+					<Sun size={16} />
 				{:else}
-					<Moon size={18} />
-					Dark
+					<Moon size={16} />
 				{/if}
 			</button>
 		</div>
@@ -179,7 +171,7 @@
 		<div>
 			<article>
 				<header>
-					<h2>Algorithm Selection</h2>
+					<h2>Algorithm Selection & Controls</h2>
 				</header>
 				<fieldset>
 					{#each algorithms as algorithm}
@@ -196,20 +188,7 @@
 						</label>
 					{/each}
 				</fieldset>
-			</article>
-
-			<article>
-				<header>
-					<h2>Controls</h2>
-				</header>
-				{#if selectedAlgorithm}
-					<p>
-						<strong>Selected:</strong> 
-						<mark>
-							{algorithms.find(a => a.id === selectedAlgorithm)?.name || 'None'}
-						</mark>
-					</p>
-				{/if}
+				
 				<div class="grid">
 					<button 
 						on:click={runAlgorithm}
@@ -229,11 +208,6 @@
 					</button>
 				</div>
 			</article>
-
-			<GraphGenerator 
-				bind:currentGraph={graph}
-				on:graphChanged={handleGraphChanged}
-			/>
 		</div>
 
 		<div>
@@ -294,8 +268,8 @@
 <footer class="container">
 	<small>
 		<Info size={16} />
-		This interactive demo showcases three different approaches to finding the Minimum Spanning Tree. 
-		Use the animation controls to step through each algorithm's execution.
+		Interactive demonstration of Minimum Spanning Tree algorithms. 
+		Select an algorithm and click "Run Algorithm" to see step-by-step visualization of how each algorithm builds the MST.
 	</small>
 </footer>
 
@@ -321,6 +295,14 @@
 
 	.theme-toggle button {
 		margin: 0;
+	}
+
+	.compact-theme-btn {
+		min-width: 2.5rem !important;
+		height: 2.5rem !important;
+		padding: 0.5rem !important;
+		border-radius: 50% !important;
+		justify-content: center !important;
 	}
 
 	footer small {

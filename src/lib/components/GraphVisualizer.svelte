@@ -24,15 +24,20 @@
 
 	// Generate positions for vertices in a circle
 	function generatePositions() {
-		if (!svgElement) return;
+		let width = svgWidth;
+		let height = svgHeight;
 		
-		const rect = svgElement.getBoundingClientRect();
-		svgWidth = rect.width || 600;
-		svgHeight = rect.height || 400;
+		if (svgElement) {
+			const rect = svgElement.getBoundingClientRect();
+			width = rect.width || 600;
+			height = rect.height || 400;
+			svgWidth = width;
+			svgHeight = height;
+		}
 		
-		const centerX = svgWidth / 2;
-		const centerY = svgHeight / 2;
-		const radius = Math.min(svgWidth, svgHeight) * 0.35;
+		const centerX = width / 2;
+		const centerY = height / 2;
+		const radius = Math.min(width, height) * 0.35;
 		
 		positions = {};
 		const angleStep = (2 * Math.PI) / graph.vertices.length;
@@ -183,10 +188,13 @@
 	});
 
 	onMount(() => {
-		// Initial positioning
+		// Initial positioning - generate immediately with default dimensions
+		generatePositions();
+		
+		// Also try after a short delay in case SVG isn't ready
 		setTimeout(() => {
 			generatePositions();
-		}, 100);
+		}, 10);
 		
 		// Handle window resize
 		const handleResize = () => {
@@ -203,10 +211,13 @@
 	});
 
 	// Regenerate positions when graph changes
-	$: if (graph && svgElement) {
-		setTimeout(() => {
-			generatePositions();
-		}, 50);
+	$: if (graph) {
+		generatePositions(); // Immediate generation
+		if (svgElement) {
+			setTimeout(() => {
+				generatePositions();
+			}, 10);
+		}
 	}
 </script>
 
@@ -231,13 +242,16 @@
 
 	<div class="svg-container">
 		<svg bind:this={svgElement} viewBox="0 0 600 400" preserveAspectRatio="xMidYMid meet">
-			<!-- Grid background -->
+			<!-- Grid background with theme-responsive colors -->
 			<defs>
-				<pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-					<path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e5e7eb" stroke-width="0.5" opacity="0.3"/>
+				<pattern id="grid-light" width="20" height="20" patternUnits="userSpaceOnUse">
+					<path d="M 20 0 L 0 0 0 20" fill="none" stroke="#d1d5db" stroke-width="0.5" opacity="0.4"/>
+				</pattern>
+				<pattern id="grid-dark" width="20" height="20" patternUnits="userSpaceOnUse">
+					<path d="M 20 0 L 0 0 0 20" fill="none" stroke="#374151" stroke-width="0.5" opacity="0.2"/>
 				</pattern>
 			</defs>
-			<rect width="100%" height="100%" fill="url(#grid)" />
+			<rect width="100%" height="100%" fill="url(#grid-light)" class="grid-bg" />
 			
 			<!-- Edges -->
 			<g class="edges">
@@ -319,10 +333,45 @@
 
 	{#if animationSteps.length > 0}
 		<div class="animation-controls">
-			<div class="controls-header">
-				<h4>Animation Controls</h4>
-				<div class="step-counter">
-					Step {currentStep + 1} of {animationSteps.length}
+			<div class="controls-row">
+				<div class="step-info">
+					<span class="step-counter">Step {currentStep + 1} of {animationSteps.length}</span>
+				</div>
+				<div class="control-buttons">
+					<button 
+						class="control-btn secondary"
+						on:click={prevStep} 
+						disabled={currentStep === 0}
+						title="Previous Step"
+					>
+						<SkipBack size={14} />
+					</button>
+					<button 
+						class="control-btn primary"
+						on:click={togglePlayPause}
+						title={isPlaying ? 'Pause' : 'Play'}
+					>
+						{#if isPlaying}
+							<Pause size={14} />
+						{:else}
+							<Play size={14} />
+						{/if}
+					</button>
+					<button 
+						class="control-btn secondary"
+						on:click={nextStep} 
+						disabled={currentStep >= animationSteps.length - 1}
+						title="Next Step"
+					>
+						<SkipForward size={14} />
+					</button>
+					<button 
+						class="control-btn secondary"
+						on:click={stop}
+						title="Reset to Start"
+					>
+						<RotateCcw size={14} />
+					</button>
 				</div>
 			</div>
 			<div class="progress-bar">
@@ -332,46 +381,11 @@
 					max={Math.max(0, animationSteps.length - 1)}
 					bind:value={currentStep}
 					on:input={(e) => goToStep(Number(e.target.value))}
+					class="progress-slider"
 				/>
 			</div>
-			<div class="control-buttons">
-				<button 
-					class="secondary compact"
-					on:click={prevStep} 
-					disabled={currentStep === 0}
-					title="Previous Step"
-				>
-					<SkipBack size={16} />
-				</button>
-				<button 
-					class="primary compact"
-					on:click={togglePlayPause}
-					title={isPlaying ? 'Pause' : 'Play'}
-				>
-					{#if isPlaying}
-						<Pause size={16} />
-					{:else}
-						<Play size={16} />
-					{/if}
-				</button>
-				<button 
-					class="secondary compact"
-					on:click={nextStep} 
-					disabled={currentStep >= animationSteps.length - 1}
-					title="Next Step"
-				>
-					<SkipForward size={16} />
-				</button>
-				<button 
-					class="secondary compact"
-					on:click={stop}
-					title="Reset to Start"
-				>
-					<RotateCcw size={16} />
-				</button>
-			</div>
 			<div class="current-step-info">
-				<small><strong>Current Step:</strong> {animationSteps[currentStep]?.description || 'No description'}</small>
+				<small>{animationSteps[currentStep]?.description || 'No description'}</small>
 			</div>
 		</div>
 	{/if}
@@ -452,6 +466,20 @@
 		background: var(--pico-card-background-color, #ffffff);
 	}
 
+	/* Theme-responsive grid background */
+	:global([data-theme="light"]) svg .grid-bg {
+		fill: url(#grid-light);
+	}
+
+	:global([data-theme="dark"]) svg .grid-bg {
+		fill: url(#grid-dark);
+	}
+
+	/* Default to light theme if no data-theme attribute */
+	svg .grid-bg {
+		fill: url(#grid-light);
+	}
+
 	.legend {
 		background: var(--pico-card-background-color, #f8fafc);
 		border: 1px solid var(--pico-muted-border-color, #e5e7eb);
@@ -489,7 +517,7 @@
 	}
 
 	.legend-line.edge {
-		background: #6b7280;
+		background: var(--pico-muted-color, #6b7280);
 	}
 
 	.legend-line.mst {
@@ -502,77 +530,140 @@
 		box-shadow: 0 0 4px rgba(245, 158, 11, 0.6);
 	}
 
-	.animation-controls {
-		background: var(--pico-primary-background, #eff6ff);
-		border: 1px solid var(--pico-primary, #3b82f6);
-		border-radius: 6px;
-		padding: 1rem;
+	/* Dark theme legend adjustments */
+	:global([data-theme="dark"]) .legend-line.edge {
+		background: #9ca3af;
 	}
 
-	.controls-header {
+	.animation-controls {
+		background: var(--pico-card-background-color, #f8fafc);
+		border: 1px solid var(--pico-muted-border-color, #e5e7eb);
+		border-radius: 6px;
+		padding: 0.75rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.controls-row {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		margin-bottom: 0.75rem;
+		gap: 1rem;
+		flex-wrap: wrap;
 	}
 
-	.controls-header h4 {
-		margin: 0;
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: var(--pico-color, #374151);
+	.step-info {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
 	}
 
 	.step-counter {
-		font-size: 0.75rem;
+		font-size: 0.8rem;
 		color: var(--pico-muted-color, #6b7280);
 		font-weight: 500;
-	}
-
-	.progress-bar {
-		margin-bottom: 1rem;
-	}
-
-	.progress-bar input[type="range"] {
-		width: 100%;
-		height: 6px;
-		margin: 0;
+		white-space: nowrap;
 	}
 
 	.control-buttons {
 		display: flex;
-		gap: 0.5rem;
-		justify-content: center;
-		margin-bottom: 1rem;
-		flex-wrap: wrap;
+		gap: 0.25rem;
+		align-items: center;
 	}
 
-	.control-buttons button.compact {
-		min-width: 2.5rem;
-		height: 2.5rem;
-		padding: 0.5rem;
+	.control-btn {
+		min-width: 2rem;
+		height: 2rem;
+		padding: 0.25rem;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		border-radius: 6px;
+		border-radius: 4px;
+		border: 1px solid var(--pico-muted-border-color, #e5e7eb);
+		background: var(--pico-card-background-color, #ffffff);
+		color: var(--pico-color, #374151);
+		cursor: pointer;
+		transition: all 0.2s ease;
+		margin: 0;
+		font-size: 0;
+	}
+
+	.control-btn:hover:not(:disabled) {
+		background: var(--pico-secondary-background, #f8fafc);
+		border-color: var(--pico-secondary, #6b7280);
+	}
+
+	.control-btn.primary {
+		background: var(--pico-primary, #3b82f6);
+		color: white;
+		border-color: var(--pico-primary, #3b82f6);
+	}
+
+	.control-btn.primary:hover:not(:disabled) {
+		background: var(--pico-primary-hover, #2563eb);
+		border-color: var(--pico-primary-hover, #2563eb);
+	}
+
+	.control-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.progress-bar {
+		width: 100%;
+	}
+
+	.progress-slider {
+		width: 100%;
+		height: 4px;
+		margin: 0;
+		-webkit-appearance: none;
+		appearance: none;
+		background: var(--pico-muted-border-color, #e5e7eb);
+		border-radius: 2px;
+		outline: none;
+	}
+
+	.progress-slider::-webkit-slider-thumb {
+		-webkit-appearance: none;
+		appearance: none;
+		width: 16px;
+		height: 16px;
+		background: var(--pico-primary, #3b82f6);
+		border-radius: 50%;
+		cursor: pointer;
+		border: 2px solid white;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+	}
+
+	.progress-slider::-moz-range-thumb {
+		width: 16px;
+		height: 16px;
+		background: var(--pico-primary, #3b82f6);
+		border-radius: 50%;
+		cursor: pointer;
+		border: 2px solid white;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 	}
 
 	.current-step-info {
-		background: var(--pico-card-background-color, #ffffff);
-		border: 1px solid var(--pico-muted-border-color, #e5e7eb);
-		border-radius: 4px;
-		padding: 0.75rem;
+		background: var(--pico-secondary-background, rgba(59, 130, 246, 0.05));
+		border-left: 3px solid var(--pico-primary, #3b82f6);
+		border-radius: 0 4px 4px 0;
+		padding: 0.5rem;
 		text-align: center;
 	}
 
 	.current-step-info small {
-		font-size: 0.8rem;
-		line-height: 1.4;
+		font-size: 0.75rem;
+		line-height: 1.3;
 		color: var(--pico-color, #374151);
+		font-style: italic;
 	}
 
 	svg .edge {
-		stroke: #6b7280;
+		stroke: var(--pico-muted-color, #6b7280);
 		stroke-width: 2;
 		fill: none;
 		transition: all 0.5s ease;
@@ -616,14 +707,14 @@
 
 	.vertex {
 		fill: var(--pico-card-background-color, #ffffff);
-		stroke: #3b82f6;
+		stroke: var(--pico-primary, #3b82f6);
 		stroke-width: 3;
 		transition: all 0.3s ease;
 		filter: drop-shadow(0 2px 4px rgba(59, 130, 246, 0.3));
 	}
 
 	.vertex-label {
-		fill: #3b82f6;
+		fill: var(--pico-primary, #3b82f6);
 		font-weight: bold;
 		font-size: 14px;
 		pointer-events: none;
@@ -640,6 +731,19 @@
 		font-size: 11px;
 		font-weight: bold;
 		pointer-events: none;
+	}
+
+	/* Dark theme specific adjustments */
+	:global([data-theme="dark"]) .vertex {
+		filter: drop-shadow(0 2px 4px rgba(59, 130, 246, 0.4));
+	}
+
+	:global([data-theme="dark"]) svg .edge {
+		stroke: #9ca3af;
+	}
+
+	:global([data-theme="dark"]) .weight-label {
+		fill: var(--pico-color, #f3f4f6);
 	}
 
 	.edge-group {
@@ -681,17 +785,17 @@
 			font-size: 0.8rem;
 		}
 		
-		.controls-header {
+		.controls-row {
 			flex-direction: column;
 			gap: 0.5rem;
-			text-align: center;
+			align-items: stretch;
 		}
 		
 		.control-buttons {
-			gap: 0.25rem;
+			justify-content: center;
 		}
 		
-		.control-buttons button.compact {
+		.control-btn {
 			min-width: 2.25rem;
 			height: 2.25rem;
 		}
@@ -719,6 +823,11 @@
 			flex-direction: column;
 			gap: 0.5rem;
 			align-items: center;
+		}
+		
+		.control-btn {
+			min-width: 2rem;
+			height: 2rem;
 		}
 		
 		svg {
