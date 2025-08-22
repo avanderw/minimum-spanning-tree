@@ -17,8 +17,6 @@
 	let positions: Record<string, { x: number; y: number }> = {};
 	let isPlaying = false;
 	let intervalId: number | null = null;
-	let svgWidth = 600;
-	let svgHeight = 400;
 	let hasAutoStarted = false; // Prevent multiple auto-starts
 	
 	const VERTEX_RADIUS = 20;
@@ -26,16 +24,10 @@
 
 	// Generate positions for vertices in a circle
 	function generatePositions() {
-		let width = svgWidth;
-		let height = svgHeight;
-		
-		if (svgElement) {
-			const rect = svgElement.getBoundingClientRect();
-			width = rect.width || 600;
-			height = rect.height || 400;
-			svgWidth = width;
-			svgHeight = height;
-		}
+		// Use the viewBox dimensions consistently instead of actual rendered size
+		// This prevents scaling issues between desktop and mobile
+		const width = 600;  // Match viewBox width
+		const height = 400; // Match viewBox height
 		
 		const centerX = width / 2;
 		const centerY = height / 2;
@@ -213,36 +205,13 @@
 	});
 
 	onMount(() => {
-		// Initial positioning - generate immediately with default dimensions
+		// Generate positions immediately using viewBox dimensions
 		generatePositions();
-		
-		// Also try after a short delay in case SVG isn't ready
-		setTimeout(() => {
-			generatePositions();
-		}, 10);
-		
-		// Handle window resize
-		const handleResize = () => {
-			setTimeout(() => {
-				generatePositions();
-			}, 100);
-		};
-		
-		window.addEventListener('resize', handleResize);
-		
-		return () => {
-			window.removeEventListener('resize', handleResize);
-		};
 	});
 
 	// Regenerate positions when graph changes
 	$: if (graph) {
-		generatePositions(); // Immediate generation
-		if (svgElement) {
-			setTimeout(() => {
-				generatePositions();
-			}, 10);
-		}
+		generatePositions();
 	}
 
 	// Reset auto-start flag when animationSteps change
