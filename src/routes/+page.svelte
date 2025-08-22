@@ -221,9 +221,6 @@
 	<div class="grid">
 		<div>
 			<article>
-				<header>
-					<h2>Algorithm Selection</h2>
-				</header>
 				<fieldset>
 					{#each algorithms as algorithm}
 						<label>
@@ -285,9 +282,6 @@
 
 		<div>
 			<article>
-				<header>
-					<h2>Graph Visualization & Animation</h2>
-				</header>
 				<GraphVisualizer 
 					{graph}
 					mstEdges={currentMSTEdges}

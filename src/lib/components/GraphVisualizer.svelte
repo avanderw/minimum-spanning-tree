@@ -239,8 +239,7 @@
 </script>
 
 <div class="graph-visualizer">
-	<div class="graph-stats">
-		<h4>Graph Statistics</h4>
+	<div class="svg-container">
 		<div class="stats-grid">
 			<div class="stat">
 				<span class="stat-value">{graph.vertices.length}</span>
@@ -255,9 +254,6 @@
 				<span class="stat-label">density</span>
 			</div>
 		</div>
-	</div>
-
-	<div class="svg-container">
 		<svg bind:this={svgElement} viewBox="0 0 600 400" preserveAspectRatio="xMidYMid meet">
 			<!-- Grid background with theme-responsive colors -->
 			<defs>
@@ -392,19 +388,15 @@
 		margin: 0 auto;
 	}
 
-	.graph-stats {
-		background: var(--pico-card-background-color, #f8fafc);
+	.svg-container {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		background: var(--pico-card-background-color, #ffffff);
 		border: 1px solid var(--pico-muted-border-color, #e5e7eb);
-		border-radius: 6px;
-		padding: 0.75rem;
-	}
-
-	.graph-stats h4 {
-		margin: 0 0 0.5rem 0;
-		font-size: 0.8rem;
-		font-weight: 600;
-		color: var(--pico-color, #374151);
-		text-align: center;
+		border-radius: 8px;
+		padding: 1rem;
+		gap: 1rem;
 	}
 
 	.stats-grid {
@@ -435,15 +427,6 @@
 		text-transform: uppercase;
 		letter-spacing: 0.025em;
 		margin-top: 0.15rem;
-	}
-
-	.svg-container {
-		display: flex;
-		justify-content: center;
-		background: var(--pico-card-background-color, #ffffff);
-		border: 1px solid var(--pico-muted-border-color, #e5e7eb);
-		border-radius: 8px;
-		padding: 1rem;
 	}
 
 	svg {
@@ -622,15 +605,6 @@
 	@media (max-width: 768px) {
 		.graph-visualizer {
 			gap: 0.75rem;
-		}
-		
-		.graph-stats {
-			padding: 0.5rem;
-		}
-		
-		.graph-stats h4 {
-			font-size: 0.75rem;
-			margin-bottom: 0.4rem;
 		}
 		
 		.stats-grid {
