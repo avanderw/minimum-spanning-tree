@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { GitBranch, Sun, Moon } from 'lucide-svelte';
+	import { GitBranch } from 'lucide-svelte';
 	
 	// Import MST algorithms
 	import { prim } from '$lib/mst/prim';
@@ -60,32 +60,6 @@
 			]
 		}}
 	];
-
-	// Theme management
-	let isDarkMode = false;
-
-	function toggleTheme() {
-		isDarkMode = !isDarkMode;
-		const html = document.documentElement;
-		
-		if (isDarkMode) {
-			html.setAttribute('data-theme', 'dark');
-			localStorage.setItem('theme', 'dark');
-		} else {
-			html.setAttribute('data-theme', 'light');
-			localStorage.setItem('theme', 'light');
-		}
-	}
-
-	function initializeTheme() {
-		const savedTheme = localStorage.getItem('theme');
-		const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-		
-		isDarkMode = savedTheme === 'dark' || (!savedTheme && prefersDark);
-		
-		const html = document.documentElement;
-		html.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
-	}
 
 	const algorithms = [
 		{ id: 'kruskal', name: "Kruskal's Algorithm", description: 'Sorts edges and adds them if they don\'t create cycles' },
@@ -186,7 +160,6 @@
 	}
 
 	onMount(() => {
-		initializeTheme();
 		// Run the initial algorithm
 		runAlgorithmAndStartAnimation();
 	});
@@ -199,19 +172,6 @@
 				<GitBranch size={32} />
 				Minimum Spanning Tree Algorithms
 			</h1>
-		</div>
-		<div class="theme-toggle">
-			<button 
-				class="secondary compact-theme-btn"
-				on:click={toggleTheme}
-				title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-			>
-				{#if isDarkMode}
-					<Sun size={16} />
-				{:else}
-					<Moon size={16} />
-				{/if}
-			</button>
 		</div>
 	</div>
 </header>
@@ -301,7 +261,7 @@
 <style>
 	.header-content {
 		display: flex;
-		justify-content: space-between;
+		justify-content: flex-start;
 		align-items: flex-start;
 		flex-wrap: wrap;
 		gap: 1rem;
@@ -312,22 +272,6 @@
 		align-items: center;
 		gap: 0.75rem;
 		margin-bottom: 0.5rem;
-	}
-
-	.theme-toggle {
-		flex-shrink: 0;
-	}
-
-	.theme-toggle button {
-		margin: 0;
-	}
-
-	.compact-theme-btn {
-		min-width: 2.5rem !important;
-		height: 2.5rem !important;
-		padding: 0.5rem !important;
-		border-radius: 50% !important;
-		justify-content: center !important;
 	}
 
 	button {
@@ -433,10 +377,6 @@
 		.header-content {
 			flex-direction: column;
 			align-items: stretch;
-		}
-		
-		.theme-toggle {
-			align-self: flex-end;
 		}
 
 		.result-stats {
