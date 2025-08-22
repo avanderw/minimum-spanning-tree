@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Play, RotateCcw, Settings, Info, GitBranch, Sun, Moon } from 'lucide-svelte';
+	import { GitBranch, Sun, Moon } from 'lucide-svelte';
 	
 	// Import MST algorithms
 	import { prim } from '$lib/mst/prim';
@@ -21,6 +21,45 @@
 	let currentAnimationStep = 0;
 	let currentMSTEdges: any[] = [];
 	let currentHighlightedEdges: any[] = [];
+
+	// Graph presets
+	const graphPresets = [
+		{ id: 'simple', name: 'Simple', graph: {
+			vertices: ['A', 'B', 'C', 'D'],
+			edges: [
+				{ from: 'A', to: 'B', weight: 1 },
+				{ from: 'B', to: 'C', weight: 2 },
+				{ from: 'C', to: 'D', weight: 3 },
+				{ from: 'A', to: 'D', weight: 4 }
+			]
+		}},
+		{ id: 'textbook', name: 'Textbook', graph: {
+			vertices: ['A', 'B', 'C', 'D', 'E'],
+			edges: [
+				{ from: 'A', to: 'B', weight: 4 },
+				{ from: 'A', to: 'C', weight: 2 },
+				{ from: 'B', to: 'C', weight: 1 },
+				{ from: 'B', to: 'D', weight: 5 },
+				{ from: 'C', to: 'D', weight: 8 },
+				{ from: 'C', to: 'E', weight: 10 },
+				{ from: 'D', to: 'E', weight: 2 }
+			]
+		}},
+		{ id: 'complex', name: 'Complex', graph: {
+			vertices: ['A', 'B', 'C', 'D', 'E', 'F'],
+			edges: [
+				{ from: 'A', to: 'B', weight: 7 },
+				{ from: 'A', to: 'C', weight: 9 },
+				{ from: 'A', to: 'F', weight: 14 },
+				{ from: 'B', to: 'C', weight: 10 },
+				{ from: 'B', to: 'D', weight: 15 },
+				{ from: 'C', to: 'D', weight: 11 },
+				{ from: 'C', to: 'F', weight: 2 },
+				{ from: 'D', to: 'E', weight: 6 },
+				{ from: 'E', to: 'F', weight: 9 }
+			]
+		}}
+	];
 
 	// Theme management
 	let isDarkMode = false;
@@ -56,18 +95,7 @@
 	];
 
 	// Default graph - using the textbook example
-	let graph: Graph = {
-		vertices: ['A', 'B', 'C', 'D', 'E'],
-		edges: [
-			{ from: 'A', to: 'B', weight: 4 },
-			{ from: 'A', to: 'C', weight: 2 },
-			{ from: 'B', to: 'C', weight: 1 },
-			{ from: 'B', to: 'D', weight: 5 },
-			{ from: 'C', to: 'D', weight: 8 },
-			{ from: 'C', to: 'E', weight: 10 },
-			{ from: 'D', to: 'E', weight: 2 }
-		]
-	};
+	let graph: Graph = graphPresets[1].graph;
 
 	async function runAlgorithm() {
 		isRunning = true;
@@ -118,6 +146,34 @@
 		currentHighlightedEdges = [];
 	}
 
+	function selectGraph(presetId: string) {
+		const preset = graphPresets.find(p => p.id === presetId);
+		if (preset) {
+			graph = preset.graph;
+			// Reset and run algorithm automatically
+			resetDemo();
+			runAlgorithmAndStartAnimation();
+		}
+	}
+
+	async function runAlgorithmAndStartAnimation() {
+		await runAlgorithm();
+		// Start animation automatically after algorithm completes
+		if (result?.animationSteps && result.animationSteps.length > 0) {
+			// Small delay to ensure the visualization component is ready
+			setTimeout(() => {
+				// Trigger the first step to start the animation
+				updateVisualization(0);
+			}, 100);
+		}
+	}
+
+	// Auto-run algorithm when selection changes
+	$: if (selectedAlgorithm) {
+		resetDemo();
+		runAlgorithmAndStartAnimation();
+	}
+
 	function updateVisualization(stepIndex: number) {
 		if (animationSteps.length === 0) return;
 		
@@ -138,6 +194,8 @@
 
 	onMount(() => {
 		initializeTheme();
+		// Run the initial algorithm
+		runAlgorithmAndStartAnimation();
 	});
 </script>
 
@@ -171,7 +229,7 @@
 		<div>
 			<article>
 				<header>
-					<h2>Algorithm Selection & Controls</h2>
+					<h2>Algorithm Selection</h2>
 				</header>
 				<fieldset>
 					{#each algorithms as algorithm}
@@ -189,23 +247,45 @@
 					{/each}
 				</fieldset>
 				
-				<div class="grid">
-					<button 
-						on:click={runAlgorithm}
-						disabled={isRunning}
-						aria-busy={isRunning}
-					>
-						<Play size={18} />
-						{isRunning ? 'Running...' : 'Run Algorithm'}
-					</button>
-					<button 
-						class="secondary"
-						on:click={resetDemo}
-						disabled={isRunning}
-					>
-						<RotateCcw size={18} />
-						Reset
-					</button>
+				{#if result && !isRunning}
+					<div class="results-compact">
+						<div class="result-stats">
+							<div class="stat">
+								<span class="stat-value">{result.totalWeight || 'N/A'}</span>
+								<span class="stat-label">weight</span>
+							</div>
+							<div class="stat">
+								<span class="stat-value">{result.edges?.length || 0}</span>
+								<span class="stat-label">edges</span>
+							</div>
+							<div class="stat">
+								<span class="stat-value">{result.executionTime?.toFixed(1) || 'N/A'}ms</span>
+								<span class="stat-label">time</span>
+							</div>
+						</div>
+					</div>
+				{:else if isRunning}
+					<div class="results-compact running">
+						<div class="loading-indicator">
+							<div class="spinner"></div>
+							<span>Running...</span>
+						</div>
+					</div>
+				{/if}
+
+				<div class="graph-controls">
+					<h4>Graph Presets</h4>
+					<div class="preset-buttons">
+						{#each graphPresets as preset}
+							<button 
+								class="outline {graph === preset.graph ? 'active-preset' : ''}"
+								on:click={() => selectGraph(preset.id)}
+								disabled={isRunning}
+							>
+								{preset.name}
+							</button>
+						{/each}
+					</div>
 				</div>
 			</article>
 		</div>
@@ -227,51 +307,8 @@
 		</div>
 	</div>
 
-	{#if result}
-		<article>
-			<header>
-				<h2>Results - {algorithms.find(a => a.id === selectedAlgorithm)?.name}</h2>
-			</header>
-			<div class="grid">
-				<div>
-					<strong>Total Weight</strong>
-					<p>{result.totalWeight || 'N/A'}</p>
-				</div>
-				<div>
-					<strong>Edges in MST</strong>
-					<p>{result.edges?.length || 0}</p>
-				</div>
-				<div>
-					<strong>Execution Time</strong>
-					<p>{result.executionTime?.toFixed(2) || 'N/A'} ms</p>
-				</div>
-			</div>
-			
-			{#if result.edges}
-				<details>
-					<summary>MST Edges ({result.edges.length})</summary>
-					<ul>
-						{#each result.edges as edge, index}
-							<li>
-								<strong>{index + 1}.</strong>
-								{edge.from} ↔ {edge.to} 
-								<small>(Weight: {edge.weight})</small>
-							</li>
-						{/each}
-					</ul>
-				</details>
-			{/if}
-		</article>
-	{/if}
 </main>
 
-<footer class="container">
-	<small>
-		<Info size={16} />
-		Interactive demonstration of Minimum Spanning Tree algorithms. 
-		Select an algorithm and click "Run Algorithm" to see step-by-step visualization of how each algorithm builds the MST.
-	</small>
-</footer>
 
 <style>
 	.header-content {
@@ -305,18 +342,103 @@
 		justify-content: center !important;
 	}
 
-	footer small {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		opacity: 0.7;
-		line-height: 1.5;
-	}
-
 	button {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
+	}
+
+	.results-compact {
+		margin-top: 1rem;
+		padding: 0.75rem;
+		background: var(--pico-card-background-color, #f8fafc);
+		border: 1px solid var(--pico-muted-border-color, #e5e7eb);
+		border-radius: 6px;
+	}
+
+	.results-compact.running {
+		text-align: center;
+	}
+
+	.result-stats {
+		display: flex;
+		justify-content: center;
+		gap: 1.5rem;
+		flex-wrap: wrap;
+	}
+
+	.result-stats .stat {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+		min-width: 60px;
+	}
+
+	.result-stats .stat-value {
+		font-size: 1rem;
+		font-weight: 700;
+		color: var(--pico-primary, #3b82f6);
+		line-height: 1.1;
+	}
+
+	.result-stats .stat-label {
+		font-size: 0.65rem;
+		color: var(--pico-muted-color, #6b7280);
+		text-transform: uppercase;
+		letter-spacing: 0.025em;
+		margin-top: 0.15rem;
+	}
+
+	.loading-indicator {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		font-size: 0.9rem;
+		color: var(--pico-muted-color, #6b7280);
+	}
+
+	.spinner {
+		width: 16px;
+		height: 16px;
+		border: 2px solid var(--pico-muted-border-color, #e5e7eb);
+		border-top: 2px solid var(--pico-primary, #3b82f6);
+		border-radius: 50%;
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		0% { transform: rotate(0deg); }
+		100% { transform: rotate(360deg); }
+	}
+
+	.graph-controls {
+		margin-top: 1.5rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--pico-muted-border-color, #e5e7eb);
+	}
+
+	.graph-controls h4 {
+		margin: 0 0 0.75rem 0;
+		font-size: 0.9rem;
+		color: var(--pico-color, #374151);
+	}
+
+	.preset-buttons {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+
+	.preset-buttons button {
+		flex: 1;
+	}
+
+	.preset-buttons button.active-preset {
+		background: var(--pico-primary, #3b82f6);
+		border-color: var(--pico-primary, #3b82f6);
+		color: #ffffff;
 	}
 
 	@media (max-width: 768px) {
@@ -327,6 +449,14 @@
 		
 		.theme-toggle {
 			align-self: flex-end;
+		}
+
+		.result-stats {
+			gap: 1rem;
+		}
+
+		.preset-buttons {
+			flex-direction: column;
 		}
 	}
 </style>
